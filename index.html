@@ -174,6 +174,65 @@
       height: fit-content;
    }
 
+   /* --- Responsive Fixes --- */
+    @media (max-width: 768px) {
+      body {
+        padding: 16px;
+        gap: 16px;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .designer {
+        height: auto;
+        align-items: center;
+      }
+
+      .canvas {
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 3/4;
+      }
+
+      canvas#drawCanvas,
+      svg.tree {
+        width: 100% !important;
+        height: auto !important;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .side-controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+        height: auto;
+        gap: 10px;
+      }
+
+      .side-controls .muted {
+        width: 100%;
+        text-align: center;
+      }
+
+      .btn {
+        flex: 1 1 40%;
+      }
+
+      .gallery {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      }
+
+      footer {
+        margin-top: 40px;
+      }
+    }
+
+
   </style>
 </head>
 <body>

@@ -127,19 +127,22 @@
       grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: 12px;
     }
-    .thumb {
-      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-      padding: 8px;
-      border-radius: 10px;
-      text-align: center;
-      cursor: pointer;
-    }
     .thumb img {
-      width: 120px;
-      height: 160px;
-      object-fit: cover;
+      width: 120px; 
+      aspect-ratio: 3 / 4; /* keeps 360x480 proportions */
+      object-fit: contain; /* ensures full image visible */
+      background: #06202a; /* matches your canvas background */
       border-radius: 8px;
     }
+
+    #viewArea img {
+      width: 100%;
+      aspect-ratio: 3 / 4; /* same fix for viewing area */
+      object-fit: contain;
+      background: #06202a;
+      border-radius: 8px;
+    }
+
     footer {
       width: 100%;
       text-align: center;
@@ -413,40 +416,52 @@
       statusEl.textContent="Firebase init failed.";
     }
   }
+saveBtn.onclick = async () => {
+  if (saved) return;
+  statusEl.textContent = "Saving...";
 
-  saveBtn.onclick = async () => {
-    if (saved) return;
-    statusEl.textContent = "Saving...";
-    const combined = document.createElement("canvas");
-    combined.width = canvas.width;
-    combined.height = canvas.height;
-    const ctx2 = combined.getContext("2d");
-    const svg = document.querySelector(".tree");
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(svgBlob);
-    const treeImg = new Image();
-    treeImg.onload = async () => {
-      ctx2.drawImage(treeImg, 0, 0, combined.width, combined.height);
-      URL.revokeObjectURL(url);
-      ctx2.drawImage(canvas, 0, 0);
-      const imgData = combined.toDataURL("image/png");
-      try {
-        await db.collection("drawings").doc(uid).set({
-          image: imgData,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        saved = true;
-        statusEl.textContent = "Saved successfully!";
-        document.querySelectorAll(".btn").forEach(b => b.classList.add("disabled"));
-        loadGallery();
-      } catch (e) {
-        console.error(e);
-        statusEl.textContent = "Save failed — check Firestore rules.";
-      }
-    };
-    treeImg.src = url;
+  const combined = document.createElement("canvas");
+  combined.width = canvas.width;
+  combined.height = canvas.height;
+  const ctx2 = combined.getContext("2d");
+
+  const svg = document.querySelector(".tree");
+  const svgData = new XMLSerializer().serializeToString(svg);
+  const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+  const treeImg = new Image();
+
+  treeImg.onload = async () => {
+    URL.revokeObjectURL(url);
+
+    // --- FIX: scale + align the SVG tree visually to match the drawCanvas ---
+    const treeWidth = 240;
+    const treeHeight = 380;
+    const treeX = (combined.width - treeWidth) / 2; // center horizontally
+    const treeY = 10; // same top offset as CSS
+    ctx2.drawImage(treeImg, treeX, treeY, treeWidth, treeHeight);
+
+    // Draw the user's strokes
+    ctx2.drawImage(canvas, 0, 0);
+
+    const imgData = combined.toDataURL("image/png");
+    try {
+      await db.collection("drawings").doc(uid).set({
+        image: imgData,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      saved = true;
+      statusEl.textContent = "Saved successfully!";
+      document.querySelectorAll(".btn").forEach(b => b.classList.add("disabled"));
+      loadGallery();
+    } catch (e) {
+      console.error(e);
+      statusEl.textContent = "Save failed — check Firestore rules.";
+    }
   };
+  treeImg.src = url;
+};
+
 
   async function loadGallery(){
     galleryEl.innerHTML="<div class='muted'>Loading gallery...</div>";

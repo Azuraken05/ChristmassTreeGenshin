@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Christmas Tree Designer — One Edit Only</title>
+  <style>
+    :root{--bg:#0b1220;--card:#0f1724;--accent:#10b981;--muted:#9aa4b2}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:linear-gradient(180deg,#071025 0%, #0b1220 60%);color:#e6eef6;min-height:100vh;display:flex;gap:20px;padding:28px;box-sizing:border-box}
+    .app{max-width:1100px;margin:auto;display:grid;grid-template-columns:480px 1fr;gap:20px;align-items:start}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:12px;padding:14px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
+    h1{margin:0 0 8px;font-size:20px}
+    p.lead{margin:0 0 12px;color:var(--muted)}
+
+    /* Canvas */
+    .designer{height:560px;display:flex;flex-direction:column;gap:10px}
+    .canvas{flex:1;background:linear-gradient(180deg,#071726, #06202a);border-radius:10px;display:flex;align-items:center;justify-content:center;padding:14px;position:relative}
+    svg.tree{width:360px;height:480px}
+    .controls{display:flex;gap:8px;align-items:center}
+    .color{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,0.08);cursor:pointer}
+    .btn{background:var(--accent);color:#072024;padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .btn.secondary{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.04)}
+    .muted{color:var(--muted);font-size:13px}
+
+    /* Gallery */
+    .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+    .thumb{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:8px;border-radius:10px;text-align:center;cursor:pointer}
+    .thumb svg{width:120px;height:160px}
+
+    footer{grid-column:1/-1;color:var(--muted);font-size:13px;margin-top:8px;text-align:center}
+    .disabled{opacity:0.5;pointer-events:none}
+    .notice{background:#08303a;padding:8px;border-radius:8px;color:#bfeee1;margin-bottom:8px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card">
+      <h1>Christmas Tree Designer</h1>
+      <p class="lead">Place ornaments on the tree by clicking on it. You can save your design <strong>only once</strong>. After saving your design is public and other visitors can view it. (Firebase required — see instructions below)</p>
+
+      <div class="designer">
+        <div id="status" class="notice">Initializing...</div>
+        <div class="canvas" id="canvas">
+          <!-- SVG tree -->
+          <svg class="tree" viewBox="0 0 200 300" id="svgTree">
+            <defs>
+              <linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#0ea5a4" stop-opacity="1"/>
+                <stop offset="100%" stop-color="#047857" stop-opacity="1"/>
+              </linearGradient>
+            </defs>
+            <!-- trunk -->
+            <rect x="90" y="250" width="20" height="30" rx="3" fill="#6b4226"/>
+            <!-- 3 layers of tree -->
+            <path d="M100 20 L30 140 L170 140 Z" fill="url(#g1)" />
+            <path d="M100 80 L20 210 L180 210 Z" fill="url(#g1)" />
+            <path d="M100 150 L40 270 L160 270 Z" fill="url(#g1)" />
+            <!-- ornaments container group -->
+            <g id="ornaments"></g>
+          </svg>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <div class="controls">
+            <div class="muted">Color:</div>
+            <div id="palette" style="display:flex;gap:8px"></div>
+            <div class="muted">Size:</div>
+            <select id="size" style="padding:6px;border-radius:6px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,0.06)">
+              <option value="3">Small</option>
+              <option value="5" selected>Medium</option>
+              <option value="8">Large</option>
+            </select>
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <button id="saveBtn" class="btn">Save design (once)</button>
+            <button id="clearBtn" class="btn secondary">Clear (before save)</button>
+          </div>
+        </div>
+
+        <p class="muted">Click anywhere on the green parts of the tree to add an ornament. You can remove an ornament by clicking it before saving. After you save, edits are disabled for your account.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1>Public designs</h1>
+      <p class="lead">Browse designs created by other visitors. Click a thumbnail to view full design.</p>
+      <div id="gallery" class="gallery"></div>
+      <div id="viewer" style="display:none;margin-top:12px">
+        <h3 style="margin:4px 0">Viewing design</h3>
+        <div id="viewArea" style="background:linear-gradient(180deg,#05262b,#04222a);padding:10px;border-radius:8px"></div>
+      </div>
+    </div>
+
+    <footer class="card">Deploy: Put this file in a GitHub repo and enable GitHub Pages. You'll need to create a Firebase project and replace the config below, then open this page from your Pages URL.</footer>
+  </div>
+
+  <!-- Firebase SDK — you will replace config with your project config -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    /***********************
+     *  CONFIGURE THIS   <-- Replace with your Firebase config
+     ***********************/
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT",
+      // other config fields if present
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // UI refs
+    const statusEl = document.getElementById('status');
+    const svg = document.getElementById('svgTree');
+    const ornamentsGroup = document.getElementById('ornaments');
+    const paletteEl = document.getElementById('palette');
+    const sizeEl = document.getElementById('size');
+    const saveBtn = document.getElementById('saveBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const galleryEl = document.getElementById('gallery');
+    const viewArea = document.getElementById('viewArea');
+
+    // Simple palette
+    const colors = ['#EF4444','#F97316','#F59E0B','#10B981','#3B82F6','#8B5CF6','#EC4899','#FDE68A'];
+    let selectedColor = colors[0];
+    function buildPalette(){
+      colors.forEach(c=>{
+        const d = document.createElement('div'); d.className='color'; d.style.background=c;
+        d.title=c; d.onclick=()=>{selectedColor=c; document.querySelectorAll('.color').forEach(x=>x.style.outline=''); d.style.outline='3px solid rgba(255,255,255,0.12)'};
+        paletteEl.appendChild(d);
+      });
+      paletteEl.firstChild.style.outline='3px solid rgba(255,255,255,0.12)';
+    }
+    buildPalette();
+
+    // ornaments state in-memory before save
+    let ornaments = []; // {x,y,color,r,id}
+    let me = {uid:null, saved:false};
+
+    // helper: convert client click to SVG coords
+    function toSvgCoords(evt){
+      const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
+      const ctm = svg.getScreenCTM().inverse();
+      return pt.matrixTransform(ctm);
+    }
+
+    // detect clicks on green tree shapes by checking if point is inside path using isPointInFill when available
+    function isOnTree(svgPoint){
+      // approximate by bounding box of green paths
+      // we'll test if point lies within any of the three green paths
+      const treePaths = Array.from(svg.querySelectorAll('path'));
+      for(const p of treePaths){
+        if (p.isPointInFill){
+          if (p.isPointInFill(svgPoint)) return true;
+        }
+      }
+      // fallback: allow most of central area
+      return (svgPoint.x>20 && svgPoint.x<180 && svgPoint.y>10 && svgPoint.y<270);
+    }
+
+    // render ornaments to DOM
+    function renderOrnaments(){
+      ornamentsGroup.innerHTML='';
+      ornaments.forEach(o=>{
+        const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        c.setAttribute('cx',o.x); c.setAttribute('cy',o.y); c.setAttribute('r',o.r);
+        c.setAttribute('fill',o.color); c.setAttribute('stroke','#000'); c.setAttribute('stroke-opacity','0.25');
+        c.style.cursor='pointer';
+        c.onclick = (e)=>{ e.stopPropagation(); if(me.saved) return; // cannot remove after save
+          // remove this ornament
+          ornaments = ornaments.filter(x=>x.id!==o.id); renderOrnaments();
+        };
+        ornamentsGroup.appendChild(c);
+      });
+    }
+
+    // click handler to add ornament
+    svg.addEventListener('click', (evt)=>{
+      if(me.saved) return; // no edits after save
+      const p = toSvgCoords(evt);
+      if(!isOnTree(p)) return;
+      const r = parseInt(sizeEl.value,10);
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+      ornaments.push({x:Math.round(p.x), y:Math.round(p.y), color:selectedColor, r, id});
+      renderOrnaments();
+    });
+
+    clearBtn.addEventListener('click', ()=>{ if(me.saved) return; ornaments=[]; renderOrnaments(); });
+
+    // sign in anonymously and check if user already saved
+    async function init(){
+      statusEl.textContent = 'Signing in...';
+      try{
+        const cred = await auth.signInAnonymously();
+        me.uid = cred.user.uid;
+        statusEl.textContent = 'Signed in (anonymous). Checking saved status...';
+
+        // check if a design doc exists for this uid
+        const doc = await db.collection('designs').doc(me.uid).get();
+        if(doc.exists){
+          me.saved = true;
+          const data = doc.data();
+          ornaments = data.ornaments || [];
+          renderOrnaments();
+          statusEl.innerHTML = 'You have already saved a design — edits disabled.';
+          document.querySelectorAll('.btn').forEach(b=>b.classList.add('disabled'));
+          // still show gallery
+        } else {
+          statusEl.innerHTML = 'You can design and save once. Your session id: ' + me.uid;
+        }
+
+        loadGallery();
+      }catch(err){
+        console.error(err); statusEl.textContent = 'Error initializing Firebase. See console.';
+      }
+    }
+
+    // save design (create-only). Client-side check prevents overwrite but you must also set Firestore rules to enforce create-only.
+    saveBtn.addEventListener('click', async ()=>{
+      if(me.saved) return; if(!me.uid) return alert('Not ready');
+      if(ornaments.length===0) return alert('Add at least one ornament');
+      saveBtn.disabled = true; saveBtn.textContent='Saving...';
+      try{
+        const payload = { createdAt: firebase.firestore.FieldValue.serverTimestamp(), ornaments };
+        // attempt to create doc only if not exists - Firestore has no atomic "create if not exists" in client SDK, so security rules must block updates.
+        await db.collection('designs').doc(me.uid).set(payload);
+        me.saved = true;
+        statusEl.textContent = 'Saved — edits now disabled.';
+        document.querySelectorAll('.btn').forEach(b=>b.classList.add('disabled'));
+        loadGallery();
+      }catch(err){
+        console.error(err); alert('Save failed. Make sure Firestore rules allow creating a new doc only if it does not exist.');
+      } finally{ saveBtn.disabled=false; saveBtn.textContent='Save design (once)'; }
+    });
+
+    // load all designs for gallery
+    async function loadGallery(){
+      galleryEl.innerHTML = '<div class="muted">Loading gallery...</div>';
+      try{
+        const snap = await db.collection('designs').orderBy('createdAt','desc').limit(48).get();
+        galleryEl.innerHTML='';
+        snap.forEach(doc=>{
+          const data = doc.data();
+          const thumb = document.createElement('div'); thumb.className='thumb';
+          const svgEl = document.createElementNS('http://www.w3.org/2000/svg','svg'); svgEl.setAttribute('viewBox','0 0 200 300'); svgEl.innerHTML = `
+            <rect x="90" y="250" width="20" height="30" rx="3" fill="#6b4226"/>
+            <path d="M100 20 L30 140 L170 140 Z" fill="#0ea5a4" />
+            <path d="M100 80 L20 210 L180 210 Z" fill="#0ea5a4" />
+            <path d="M100 150 L40 270 L160 270 Z" fill="#0ea5a4" />
+          `;
+          const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+          (data.ornaments||[]).forEach(o=>{
+            const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+            c.setAttribute('cx',o.x); c.setAttribute('cy',o.y); c.setAttribute('r',o.r); c.setAttribute('fill',o.color);
+            g.appendChild(c);
+          });
+          svgEl.appendChild(g);
+          thumb.appendChild(svgEl);
+          const meta = document.createElement('div'); meta.className='muted'; meta.style.fontSize='12px'; meta.textContent = (data.createdAt && data.createdAt.toDate) ? data.createdAt.toDate().toLocaleString() : '';
+          thumb.appendChild(meta);
+          thumb.onclick = ()=>{ viewDesign(data); };
+          galleryEl.appendChild(thumb);
+        });
+        if(galleryEl.children.length===0) galleryEl.innerHTML='<div class="muted">No designs yet. Be the first!</div>';
+      }catch(err){ console.error(err); galleryEl.innerHTML='<div class="muted">Failed to load gallery.</div>' }
+    }
+
+    function viewDesign(data){
+      viewArea.innerHTML='';
+      const svgEl = document.createElementNS('http://www.w3.org/2000/svg','svg'); svgEl.setAttribute('viewBox','0 0 200 300'); svgEl.setAttribute('width','240'); svgEl.setAttribute('height','360');
+      svgEl.innerHTML = `
+        <rect x="90" y="250" width="20" height="30" rx="3" fill="#6b4226"/>
+        <path d="M100 20 L30 140 L170 140 Z" fill="#0ea5a4" />
+        <path d="M100 80 L20 210 L180 210 Z" fill="#0ea5a4" />
+        <path d="M100 150 L40 270 L160 270 Z" fill="#0ea5a4" />
+      `;
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      (data.ornaments||[]).forEach(o=>{
+        const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        c.setAttribute('cx',o.x); c.setAttribute('cy',o.y); c.setAttribute('r',o.r); c.setAttribute('fill',o.color);
+        g.appendChild(c);
+      });
+      svgEl.appendChild(g);
+      viewArea.appendChild(svgEl);
+      document.getElementById('viewer').style.display='block';
+    }
+
+    // initialize
+    init();
+  </script>
+
+  <!--
+    SETUP NOTES (put these in your repo README):
+    1) Create a Firebase project at https://console.firebase.google.com/. Enable Firestore.
+    2) Replace the firebaseConfig object above with your project's config (apiKey, authDomain, projectId, etc.).
+    3) IMPORTANT: Add Firestore security rules to prevent updates after creation. Example rule (Firestore rules):
+
+    rules_version = '2';
+    service cloud.firestore {
+      match /databases/{database}/documents {
+        match /designs/{userId} {
+          allow read: if true;
+          // allow create only if the document does not yet exist and user is authenticated as this uid
+          allow create: if request.auth != null && request.auth.uid == userId;
+          // block updates and deletes
+          allow update, delete: if false;
+        }
+      }
+    }
+
+    4) Deploy this file to a GitHub repo and enable GitHub Pages on the repo (Settings -> Pages -> branch: main).
+    5) Serve the page (GitHub Pages URL). Visitors will be signed in anonymously by Firebase. Each anonymous user has a unique uid and can only create one design because the Firestore rules allow only create.
+
+    SECURITY NOTES:
+    - Anonymous sign-in gives each visitor a unique Firebase uid stored by Firebase; it is not perfectly tied to a person (clearing cookies or using another device yields a new uid).
+    - The Firestore rules above enforce one-document-per-uid server-side. Do NOT rely on client-side checks alone.
+
+    ALTERNATIVES:
+    - If you want users to authenticate with GitHub accounts, enable GitHub Authentication in Firebase and change rules so only that provider's users can create.
+    - If you prefer a purely static approach, you could accept submissions via GitHub Issues or pull requests using a GitHub Action, but enforcing "one edit per user" would require extra logic and authentication.
+
+    That's it — drop this file into your repo, update the Firebase config and rules, and you're ready to go.
+  -->
+</body>
+</html>

@@ -3,169 +3,424 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Christmas Tree Designer — One Edit Only</title>
+  <title>Christmas Tree Free Draw — One Save Only</title>
   <style>
-    :root{--bg:#0b1220;--card:#0f1724;--accent:#10b981;--muted:#9aa4b2}
-    body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:linear-gradient(180deg,#071025 0%, #0b1220 60%);color:#e6eef6;min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:20px;padding:28px;box-sizing:border-box}
-    .app{max-width:1100px;width:100%;display:grid;grid-template-columns:480px 1fr;gap:20px;align-items:start}
-    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:12px;padding:14px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
-    h1{margin:0 0 8px;font-size:20px}
-    p.lead{margin:0 0 12px;color:var(--muted)}
-
-    /* Canvas */
-    .designer{height:560px;display:flex;flex-direction:column;gap:10px}
-    .canvas{flex:1;background:linear-gradient(180deg,#071726, #06202a);border-radius:10px;display:flex;align-items:center;justify-content:center;padding:14px;position:relative}
-    svg.tree{width:360px;height:480px}
-    .controls{display:flex;gap:8px;align-items:center}
-    .color{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,0.08);cursor:pointer}
-    .btn{background:var(--accent);color:#072024;padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
-    .btn.secondary{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.04)}
-    .muted{color:var(--muted);font-size:13px}
-
-    /* Gallery */
-    .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
-    .thumb{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:8px;border-radius:10px;text-align:center;cursor:pointer}
-    .thumb svg{width:120px;height:160px}
-
-    footer{
-      width:100%;
-      text-align:center;
-      color:var(--muted);
-      font-size:13px;
-      margin-top:85px;
-      padding:14px;
-      background:linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
-      border-top:1px solid rgba(255,255,255,0.05);
-      box-shadow:0 -4px 10px rgba(0,0,0,0.3);
+    :root {
+      --bg: #0b1220;
+      --card: #0f1724;
+      --accent: #10b981;
+      --muted: #9aa4b2;
+    }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, Segoe UI, Arial;
+      background: linear-gradient(180deg, #071025 0%, #0b1220 60%);
+      color: #e6eef6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 28px;
+      box-sizing: border-box;
+    }
+    .app {
+      max-width: 1100px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 480px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 6px 20px rgba(2,6,23,0.6);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 20px;
+    }
+    p.lead {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+    .designer {
+      height: 560px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .canvas {
+      flex: 1;
+      position: relative;
+      background: linear-gradient(180deg, #071726, #06202a);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    svg.tree {
+      width: 240px;
+      height: 330px;
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1;
+      pointer-events: none;
+    }
+    canvas#drawCanvas {
+      position: absolute;
+      top: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      cursor: crosshair;
+      border-radius: 10px;
+    }
+    .controls {
+      top: 90px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: auto; /* pushes it to the bottom of the designer area */
+      padding-top: 30px; /* optional, add a bit of spacing from the tree */
     }
 
-    .disabled{opacity:0.5;pointer-events:none}
-    .notice{background:#08303a;padding:8px;border-radius:8px;color:#bfeee1;margin-bottom:8px}
+    .color {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.15);
+      cursor: pointer;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .color:hover {
+      transform: scale(1.1);
+      border-color: var(--accent);
+    }
+    .btn {
+      background: var(--accent);
+      color: #072024;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .btn.secondary {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    .btn:hover { opacity: 0.9; }
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .thumb {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      padding: 8px;
+      border-radius: 10px;
+      text-align: center;
+      cursor: pointer;
+    }
+    .thumb img {
+      width: 120px;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    footer {
+      width: 100%;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 85px;
+      padding: 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
+    }
+    .disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .notice {
+      background: #08303a;
+      padding: 8px;
+      border-radius: 8px;
+      color: #bfeee1;
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <div class="card">
-      <h1>Christmas Tree Designer</h1>
-      <p class="lead">Place ornaments on the tree by clicking on it. You can save your design <strong>only once</strong>. After saving your design is public and other visitors can view it. (Firebase required — see instructions below)</p>
+      <h1>Christmas Tree Free Draw</h1>
+      <p class="lead">Draw or decorate the Christmas tree however you want! You can save your drawing only once.</p>
 
       <div class="designer">
         <div id="status" class="notice">Initializing...</div>
-        <div class="canvas" id="canvas">
-          <!-- SVG tree -->
-          <svg class="tree" viewBox="0 0 200 300" id="svgTree">
+        <div class="canvas" style="width:360px;height:480px;">
+          <svg class="tree" viewBox="0 0 400 600">
             <defs>
               <linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stop-color="#0ea5a4" stop-opacity="1"/>
-                <stop offset="100%" stop-color="#047857" stop-opacity="1"/>
+                <stop offset="0%" stop-color="#10b981"/>
+                <stop offset="100%" stop-color="#065f46"/>
               </linearGradient>
             </defs>
-            <!-- trunk -->
-            <rect x="90" y="250" width="20" height="30" rx="3" fill="#6b4226"/>
-            <!-- 3 layers of tree -->
-            <path d="M100 20 L30 140 L170 140 Z" fill="url(#g1)" />
-            <path d="M100 80 L20 210 L180 210 Z" fill="url(#g1)" />
-            <path d="M100 150 L40 270 L160 270 Z" fill="url(#g1)" />
-            <!-- ornaments container group -->
-            <g id="ornaments"></g>
+            <rect x="180" y="520" width="40" height="60" rx="5" fill="#6b4226"/>
+            <path d="M200 60 L80 260 L320 260 Z" fill="url(#g1)" />
+            <path d="M200 180 L60 380 L340 380 Z" fill="url(#g1)" />
+            <path d="M200 300 L40 500 L360 500 Z" fill="url(#g1)" />
           </svg>
+
+          <canvas id="drawCanvas" width="360" height="480"></canvas>
         </div>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <!-- Controls -->
+        
+
+        <p class="muted">Use your mouse (or touch) to draw. You can use the eraser or pick any custom color!</p>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
           <div class="controls">
             <div class="muted">Color:</div>
             <div id="palette" style="display:flex;gap:8px"></div>
-            <div class="muted">Size:</div>
-            <select id="size" style="padding:6px;border-radius:6px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,0.06)">
-              <option value="3">Small</option>
-              <option value="5" selected>Medium</option>
-              <option value="8">Large</option>
-            </select>
-          </div>
+            
+            <!-- 🎨 NEW Custom color picker -->
+            <input type="color" id="customColor" value="#ffffff" 
+              style="width:36px;height:36px;border:none;border-radius:50%;cursor:pointer;background:none;padding:0;">
 
+            <div class="muted">Brush:</div>
+            <select id="size" style="padding:6px;border-radius:6px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,0.06)">
+              <option value="2">Thin</option>
+              <option value="5" selected>Medium</option>
+              <option value="10">Thick</option>
+              <option value="20">Extra Thick</option>
+            </select>
+
+            <!-- 🧽 NEW Eraser button -->
+            <button id="eraserBtn" class="btn secondary">Eraser</button>
+          </div>
+          
           <div style="display:flex;gap:8px">
-            <button id="saveBtn" class="btn">Save design (once)</button>
-            <button id="clearBtn" class="btn secondary">Clear (before save)</button>
+            <button id="saveBtn" class="btn">Save Drawing (once)</button>
+            <button id="clearBtn" class="btn secondary">Clear</button>
           </div>
         </div>
 
-        <p class="muted">Click anywhere on the green parts of the tree to add an ornament. You can remove an ornament by clicking it before saving. After you save, edits are disabled for your account.</p>
-      </div>
-    </div>
-
     <div class="card">
-      <h1>Public designs</h1>
-      <p class="lead">Browse designs created by other visitors. Click a thumbnail to view full design.</p>
+      <h1>Public Drawings</h1>
       <div id="gallery" class="gallery"></div>
       <div id="viewer" style="display:none;margin-top:12px">
-        <h3 style="margin:4px 0">Viewing design</h3>
+        <h3 style="margin:4px 0">Viewing drawing</h3>
         <div id="viewArea" style="background:linear-gradient(180deg,#05262b,#04222a);padding:10px;border-radius:8px"></div>
       </div>
     </div>
   </div>
 
-  <footer>
-    🎄 Built with Firebase • <a href="https://github.com/yourusername/yourrepo" style="color:#10b981;text-decoration:none">View Source on GitHub</a>
-  </footer>
+  <footer>🎄 Built with Firebase • Free Draw Edition</footer>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <script>
-    /***********************
-     *  CONFIGURE THIS
-     ***********************/
-    const firebaseConfig = {
-      apiKey: "AIzaSyAoNG82_VQO7uBk5wRyvOBtpSc69ksWcXc",
-      authDomain: "christmasgenshincuties.firebaseapp.com",
-      projectId: "christmasgenshincuties",
-      storageBucket: "christmasgenshincuties.firebasestorage.app",
-      messagingSenderId: "672301767030",
-      appId: "1:672301767030:web:d93bd7c4d23b5057384257"
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSyAoNG82_VQO7uBk5wRyvOBtpSc69ksWcXc",
+    authDomain: "christmasgenshincuties.firebaseapp.com",
+    projectId: "christmasgenshincuties",
+    storageBucket: "christmasgenshincuties.firebasestorage.app",
+    messagingSenderId: "672301767030",
+    appId: "1:672301767030:web:d93bd7c4d23b5057384257"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
 
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+  const canvas = document.getElementById('drawCanvas');
+  const ctx = canvas.getContext('2d');
+  const paletteEl = document.getElementById('palette');
+  const sizeEl = document.getElementById('size');
+  const saveBtn = document.getElementById('saveBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const eraserBtn = document.getElementById('eraserBtn'); /* NEW */
+  const customColor = document.getElementById('customColor'); /* NEW */
+  const statusEl = document.getElementById('status');
+  const galleryEl = document.getElementById('gallery');
+  const viewArea = document.getElementById('viewArea');
 
-    const statusEl = document.getElementById('status');
-    const svg = document.getElementById('svgTree');
-    const ornamentsGroup = document.getElementById('ornaments');
-    const paletteEl = document.getElementById('palette');
-    const sizeEl = document.getElementById('size');
-    const saveBtn = document.getElementById('saveBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const galleryEl = document.getElementById('gallery');
-    const viewArea = document.getElementById('viewArea');
+  const colors = ['#EF4444','#F59E0B','#10B981','#3B82F6','#8B5CF6','#EC4899','#FDE68A','#FFFFFF','#000000'];
+  let selectedColor = colors[0];
+  let erasing = false; /* NEW */
 
-    const colors = ['#EF4444','#F97316','#F59E0B','#10B981','#3B82F6','#8B5CF6','#EC4899','#FDE68A'];
-    let selectedColor = colors[0];
-    function buildPalette(){
-      colors.forEach(c=>{
-        const d=document.createElement('div');
-        d.className='color';
-        d.style.background=c;
-        d.onclick=()=>{selectedColor=c;document.querySelectorAll('.color').forEach(x=>x.style.outline='');d.style.outline='3px solid rgba(255,255,255,0.12)'};
-        paletteEl.appendChild(d);
-      });
-      paletteEl.firstChild.style.outline='3px solid rgba(255,255,255,0.12)';
+  colors.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='color';
+    d.style.background=c;
+    d.onclick=()=>{selectedColor=c;erasing=false;updateSelection(d);};
+    paletteEl.appendChild(d);
+  });
+  paletteEl.firstChild.style.outline='3px solid rgba(255,255,255,0.12)';
+
+  function updateSelection(el){
+    document.querySelectorAll('.color').forEach(x=>x.style.outline='');
+    el.style.outline='3px solid rgba(255,255,255,0.12)';
+  }
+
+  customColor.addEventListener('input',()=>{
+    selectedColor=customColor.value;
+    erasing=false;
+    document.querySelectorAll('.color').forEach(x=>x.style.outline='');
+  });
+
+  eraserBtn.onclick=()=>{
+    erasing=true;
+    document.querySelectorAll('.color').forEach(x=>x.style.outline='');
+  };
+
+  let drawing=false, saved=false, uid=null;
+
+  function getPos(e){
+    const rect=canvas.getBoundingClientRect();
+    const x=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+    const y=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+    return {x,y};
+  }
+
+  function startDraw(e){if(saved)return;e.preventDefault();drawing=true;const pos=getPos(e);ctx.beginPath();ctx.moveTo(pos.x,pos.y);}
+  function draw(e){
+    if(!drawing||saved)return;
+    e.preventDefault();
+    const pos=getPos(e);
+    ctx.lineTo(pos.x,pos.y);
+    ctx.strokeStyle = erasing ? '#06202a' : selectedColor; /* NEW eraser uses bg color */
+    ctx.lineWidth = sizeEl.value;
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+    ctx.stroke();
+  }
+  function endDraw(e){if(saved)return;drawing=false;ctx.closePath();}
+
+  canvas.addEventListener('mousedown',startDraw);
+  canvas.addEventListener('mousemove',draw);
+  canvas.addEventListener('mouseup',endDraw);
+  canvas.addEventListener('mouseleave',endDraw);
+  canvas.addEventListener('touchstart',startDraw);
+  canvas.addEventListener('touchmove',draw);
+  canvas.addEventListener('touchend',endDraw);
+
+  clearBtn.onclick=()=>{if(saved)return;ctx.clearRect(0,0,canvas.width,canvas.height);};
+
+  async function init(){
+    statusEl.textContent="Signing in...";
+    try{
+      const cred=await auth.signInAnonymously();
+      uid=cred.user.uid;
+      statusEl.textContent="Checking saved drawing...";
+      const doc=await db.collection("drawings").doc(uid).get();
+      if(doc.exists){
+        saved=true;
+        const img=new Image();
+        img.onload=()=>ctx.drawImage(img,0,0);
+        img.src=doc.data().image;
+        statusEl.textContent="You already saved your drawing — editing disabled.";
+        document.querySelectorAll('.btn').forEach(b=>b.classList.add('disabled'));
+      }else{
+        statusEl.textContent="You can draw and save once. Session ID: "+uid;
+      }
+      loadGallery();
+    }catch(e){
+      console.error(e);
+      statusEl.textContent="Firebase init failed.";
     }
-    buildPalette();
+  }
 
-    let ornaments=[]; let me={uid:null,saved:false};
-    function toSvgCoords(evt){const pt=svg.createSVGPoint();pt.x=evt.clientX;pt.y=evt.clientY;const ctm=svg.getScreenCTM().inverse();return pt.matrixTransform(ctm);}
-    function isOnTree(svgPoint){const treePaths=Array.from(svg.querySelectorAll('path'));for(const p of treePaths){if(p.isPointInFill){if(p.isPointInFill(svgPoint))return true;}}return(svgPoint.x>20&&svgPoint.x<180&&svgPoint.y>10&&svgPoint.y<270);}
-    function renderOrnaments(){ornamentsGroup.innerHTML='';ornaments.forEach(o=>{const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',o.x);c.setAttribute('cy',o.y);c.setAttribute('r',o.r);c.setAttribute('fill',o.color);c.setAttribute('stroke','#000');c.setAttribute('stroke-opacity','0.25');c.style.cursor='pointer';c.onclick=(e)=>{e.stopPropagation();if(me.saved)return;ornaments=ornaments.filter(x=>x.id!==o.id);renderOrnaments();};ornamentsGroup.appendChild(c);});}
-    svg.addEventListener('click',(evt)=>{if(me.saved)return;const p=toSvgCoords(evt);if(!isOnTree(p))return;const r=parseInt(sizeEl.value,10);const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);ornaments.push({x:Math.round(p.x),y:Math.round(p.y),color:selectedColor,r,id});renderOrnaments();});
-    clearBtn.addEventListener('click',()=>{if(me.saved)return;ornaments=[];renderOrnaments();});
+  saveBtn.onclick = async () => {
+    if (saved) return;
+    statusEl.textContent = "Saving...";
+    const combined = document.createElement("canvas");
+    combined.width = canvas.width;
+    combined.height = canvas.height;
+    const ctx2 = combined.getContext("2d");
+    const svg = document.querySelector(".tree");
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
+    const treeImg = new Image();
+    treeImg.onload = async () => {
+      ctx2.drawImage(treeImg, 0, 0, combined.width, combined.height);
+      URL.revokeObjectURL(url);
+      ctx2.drawImage(canvas, 0, 0);
+      const imgData = combined.toDataURL("image/png");
+      try {
+        await db.collection("drawings").doc(uid).set({
+          image: imgData,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        saved = true;
+        statusEl.textContent = "Saved successfully!";
+        document.querySelectorAll(".btn").forEach(b => b.classList.add("disabled"));
+        loadGallery();
+      } catch (e) {
+        console.error(e);
+        statusEl.textContent = "Save failed — check Firestore rules.";
+      }
+    };
+    treeImg.src = url;
+  };
 
-    async function init(){statusEl.textContent='Signing in...';try{const cred=await auth.signInAnonymously();me.uid=cred.user.uid;statusEl.textContent='Signed in. Checking saved status...';const doc=await db.collection('designs').doc(me.uid).get();if(doc.exists){me.saved=true;const data=doc.data();ornaments=data.ornaments||[];renderOrnaments();statusEl.innerHTML='You have already saved a design — edits disabled.';document.querySelectorAll('.btn').forEach(b=>b.classList.add('disabled'));}else{statusEl.innerHTML='You can design and save once. Session ID: '+me.uid;}loadGallery();}catch(err){console.error(err);statusEl.textContent='Error initializing Firebase.';}}
-    saveBtn.addEventListener('click',async()=>{if(me.saved)return;if(!me.uid)return alert('Not ready');if(ornaments.length===0)return alert('Add at least one ornament');saveBtn.disabled=true;saveBtn.textContent='Saving...';try{const payload={createdAt:firebase.firestore.FieldValue.serverTimestamp(),ornaments};await db.collection('designs').doc(me.uid).set(payload);me.saved=true;statusEl.textContent='Saved — edits now disabled.';document.querySelectorAll('.btn').forEach(b=>b.classList.add('disabled'));loadGallery();}catch(err){console.error(err);alert('Save failed — check Firestore rules.');}finally{saveBtn.disabled=false;saveBtn.textContent='Save design (once)';}});
-    async function loadGallery(){galleryEl.innerHTML='<div class="muted">Loading gallery...</div>';try{const snap=await db.collection('designs').orderBy('createdAt','desc').limit(48).get();galleryEl.innerHTML='';snap.forEach(doc=>{const data=doc.data();const thumb=document.createElement('div');thumb.className='thumb';const svgEl=document.createElementNS('http://www.w3.org/2000/svg','svg');svgEl.setAttribute('viewBox','0 0 200 300');svgEl.innerHTML='<rect x="90" y="250" width="20" height="30" rx="3" fill="#6b4226"/><path d="M100 20 L30 140 L170 140 Z" fill="#0ea5a4"/><path d="M100 80 L20 210 L180 210 Z" fill="#0ea5a4"/><path d="M100 150 L40 270 L160 270 Z" fill="#0ea5a4"/>';const g=document.createElementNS('http://www.w3.org/2000/svg','g');(data.ornaments||[]).forEach(o=>{const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',o.x);c.setAttribute('cy',o.y);c.setAttribute('r',o.r);c.setAttribute('fill',o.color);g.appendChild(c);});svgEl.appendChild(g);thumb.appendChild(svgEl);const meta=document.createElement('div');meta.className='muted';meta.style.fontSize='12px';meta.textContent=(data.createdAt&&data.createdAt.toDate)?data.createdAt.toDate().toLocaleString():'';thumb.appendChild(meta);thumb.onclick=()=>{viewDesign(data)};galleryEl.appendChild(thumb);});if(galleryEl.children.length===0)galleryEl.innerHTML='<div class="muted">No designs yet. Be the first!</div>';}catch(err){console.error(err);galleryEl.innerHTML='<div class="muted">Failed to load gallery.</div>';}}
-    function viewDesign(data){viewArea.innerHTML='';const svgEl=document.createElementNS('http://www.w3.org/2000/svg','svg');svgEl.setAttribute('viewBox','0 0 200 300');svgEl.setAttribute('width','240');svgEl.setAttribute('height','360');svgEl.innerHTML='<rect x="90" y="250" width="20" height="30" rx="3" fill="#6b4226"/><path d="M100 20 L30 140 L170 140 Z" fill="#0ea5a4"/><path d="M100 80 L20 210 L180 210 Z" fill="#0ea5a4"/><path d="M100 150 L40 270 L160 270 Z" fill="#0ea5a4"/>';const g=document.createElementNS('http://www.w3.org/2000/svg','g');(data.ornaments||[]).forEach(o=>{const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',o.x);c.setAttribute('cy',o.y);c.setAttribute('r',o.r);c.setAttribute('fill',o.color);g.appendChild(c);});svgEl.appendChild(g);viewArea.appendChild(svgEl);document.getElementById('viewer').style.display='block';}
-    init();
+  async function loadGallery(){
+    galleryEl.innerHTML="<div class='muted'>Loading gallery...</div>";
+    try{
+      const snap=await db.collection("drawings").orderBy("createdAt","desc").limit(48).get();
+      galleryEl.innerHTML="";
+      snap.forEach(doc=>{
+        const data=doc.data();
+        const div=document.createElement("div");
+        div.className="thumb";
+        const img=document.createElement("img");
+        img.src=data.image;
+        div.appendChild(img);
+        const meta=document.createElement("div");
+        meta.className="muted";
+        meta.style.fontSize="12px";
+        meta.textContent=(data.createdAt&&data.createdAt.toDate)?data.createdAt.toDate().toLocaleString():"";
+        div.appendChild(meta);
+        div.onclick=()=>viewDrawing(data);
+        galleryEl.appendChild(div);
+      });
+      if(galleryEl.children.length===0)galleryEl.innerHTML="<div class='muted'>No drawings yet. Be the first!</div>";
+    }catch(e){
+      console.error(e);
+      galleryEl.innerHTML="<div class='muted'>Failed to load gallery.</div>";
+    }
+  }
+
+  function viewDrawing(data){
+    viewArea.innerHTML="";
+    const img=document.createElement("img");
+    img.src=data.image;
+    img.style.width="240px";
+    img.style.borderRadius="8px";
+    viewArea.appendChild(img);
+    document.getElementById("viewer").style.display="block";
+  }
+
+  init();
   </script>
 </body>
 </html>
